@@ -1,3 +1,5 @@
+require 'stackprof'
+require 'benchmark'
 #Tic tac toe game
 #Funciton that prints the board to the console
 #that takes the board as an argument and prints it
@@ -45,18 +47,50 @@ def is_win(board)
 end
 #function that controls the bot's turn
 def bot_turn(board, bot)
-    #Loop until the bot makes a valid move
-    loop do
-        #Generate a random position
-        i = rand(3)
-        j = rand(3)
-        #If the position is empty, update the board and break the loop
-        if board[i][j] == " "
-            update_board(board, i, j, bot)
-            break
-        end
+    minimax(board, bot)
+    update_board(board, @choice[0], @choice[1], bot)
+end
+#function set score for minimax state
+def score(board, cur_turn)
+    if is_win(board) and cur_turn == "X"
+        return 1
+    elsif cur_turn == "O" and is_win(board)
+        return -1
+    else
+        return 0
     end
 end
+#function that implements the minimax algorithm
+def minimax(board, set_turn)
+    #if the game is over, return the score
+    if is_win(board) or is_full(board)
+        return score(board, set_turn == "X" ? "O" : "X")
+    end
+    #if the game is not over, make a list of new game states for every possible move
+    game_moves = []
+    #make a scoreboard for each possible move
+    scoreboard = []
+    for i in 0..2
+        for j in 0..2
+            if board[i][j] == " "
+                #copy a original board
+                new_board = board.map(&:clone)
+                new_board[i][j] = set_turn
+                game_moves.push([i, j])
+                scoreboard.push(minimax(new_board, set_turn == "X" ? "O" : "X"))
+            end
+        end
+    end
+    #if it's the bot's turn, return the minimum score
+    if set_turn == "O"
+        @choice = game_moves[scoreboard.index(scoreboard.min)]
+        return scoreboard.min
+    end
+    #if it's the player's turn, return the maximum score
+    @choice = game_moves[scoreboard.index(scoreboard.max)]
+    return scoreboard.max
+end
+
 #run function
 def run()
     #Create a 3x3 board with 9 empty spaces
@@ -65,12 +99,14 @@ def run()
     #player is X and bot is O
     player = "X"
     bot = "O"
+    turn = ""
     #Print the board
     print_board(board)
     #Loop until the game is over
     while true
         #Player's turn
         puts "Player's turn"
+        turn = "X"
         #Loop until the player makes a valid move
         loop do
             #Get the position from the player
@@ -96,6 +132,7 @@ def run()
         end
         #Bot's turn
         puts "Bot's turn"
+        turn = "O"
         bot_turn(board, bot)
         #Print the board
         print_board(board)
@@ -113,3 +150,21 @@ def run()
 end
 #Run the game
 run()
+#profile the code
+def profile()
+    board = Array.new(3) { Array.new(3, " ") }
+    set_turn = "O"
+    StackProf.run(mode: :cpu, out: 'stackprof-out.dump') do
+        minimax(board, set_turn)
+    end
+end
+def benchmark()
+    board = Array.new(3) { Array.new(3, " ") }
+    set_turn = "O"
+
+    time = Benchmark.measure do
+        minimax(board, set_turn)
+    end
+
+    puts "Time taken: #{time.real} seconds"
+end
